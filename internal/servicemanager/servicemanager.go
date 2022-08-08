@@ -6,6 +6,7 @@ import (
 	"github.com/zawachte/morgue/pkg/influx"
 	"github.com/zawachte/morgue/pkg/influxd"
 	"github.com/zawachte/morgue/pkg/telegraf"
+	"go.uber.org/zap"
 )
 
 type ServiceManager interface {
@@ -16,18 +17,24 @@ type ServiceManager interface {
 type ServiceManagerParams struct {
 	InfluxDLocation  string
 	TelegrafLocation string
+	Logger           zap.Logger
 }
 
 func NewServiceManager(serviceMode bool, params ServiceManagerParams) ServiceManager {
 	if serviceMode {
-		return &systemDServiceManager{}
+		return &systemDServiceManager{params.Logger}
 	}
-	return &embeddedServiceManager{}
+	return &embeddedServiceManager{
+		influxDLocation:  params.InfluxDLocation,
+		telegrafLocation: params.TelegrafLocation,
+		logger:           params.Logger,
+	}
 }
 
 type embeddedServiceManager struct {
 	influxDLocation  string
 	telegrafLocation string
+	logger           zap.Logger
 }
 
 func (esm *embeddedServiceManager) RunInfluxD() error {
@@ -59,7 +66,9 @@ func (esm *embeddedServiceManager) RunTelegraf(token string) error {
 	return nil
 }
 
-type systemDServiceManager struct{}
+type systemDServiceManager struct {
+	logger zap.Logger
+}
 
 func (esm *systemDServiceManager) RunInfluxD() error {
 	cmd := exec.Command("systemctl", "reload-or-restart", "influxd")

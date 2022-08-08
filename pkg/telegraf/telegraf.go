@@ -82,6 +82,7 @@ func RunTelegraf(abort <-chan error, config TelegrafConfig, telegrafLocation str
 	if err != nil {
 		return err
 	}
+	defer os.Remove(fullPath)
 
 	configArg := []string{"--config", fullPath}
 

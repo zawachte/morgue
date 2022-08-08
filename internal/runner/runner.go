@@ -2,15 +2,22 @@ package runner
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
+	"os"
+	"path"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/zawachte/morgue/internal/servicemanager"
 	"github.com/zawachte/morgue/internal/storagedriver"
 	"github.com/zawachte/morgue/pkg/influx"
 	"github.com/zawachte/morgue/pkg/influx_cli"
 	"github.com/zawachte/morgue/pkg/influxd"
+	"github.com/zawachte/morgue/pkg/tarutils"
+	"go.uber.org/zap"
 )
 
 type Runner interface {
@@ -22,27 +29,48 @@ type runner struct {
 	backupFrequency time.Duration
 	storageDriver   storagedriver.StorageDriver
 	svcManager      servicemanager.ServiceManager
+	logger          zap.Logger
+}
+
+type AWSParams struct {
+	Region       string
+	S3BucketName string
 }
 
 type RunnerParams struct {
 	Retention        time.Duration
 	BackupFrequency  time.Duration
+	ServiceMode      bool
 	BackupPath       string
 	InfluxDLocation  string
 	TelegrafLocation string
+	AWSParams        *AWSParams
+	Logger           zap.Logger
 }
 
 func NewRunner(params RunnerParams) (Runner, error) {
-	sd, err := storagedriver.NewStorageDriver(storagedriver.StorageDriverParams{
+
+	strgDriverParams := storagedriver.StorageDriverParams{
 		LocalStorageLocation: params.BackupPath,
-	})
+		Logger:               params.Logger,
+	}
+
+	if params.AWSParams != nil {
+		strgDriverParams.S3StorageDriverParams = &storagedriver.S3StorageDriverParams{
+			Bucket: params.AWSParams.S3BucketName,
+			Region: params.AWSParams.Region,
+		}
+	}
+
+	sd, err := storagedriver.NewStorageDriver(strgDriverParams)
 	if err != nil {
 		return nil, err
 	}
 
-	svcm := servicemanager.NewServiceManager(false, servicemanager.ServiceManagerParams{
+	svcm := servicemanager.NewServiceManager(params.ServiceMode, servicemanager.ServiceManagerParams{
 		InfluxDLocation:  params.InfluxDLocation,
 		TelegrafLocation: params.TelegrafLocation,
+		Logger:           params.Logger,
 	})
 
 	return &runner{
@@ -50,6 +78,7 @@ func NewRunner(params RunnerParams) (Runner, error) {
 		backupFrequency: params.BackupFrequency,
 		storageDriver:   sd,
 		svcManager:      svcm,
+		logger:          params.Logger,
 	}, nil
 }
 
@@ -110,26 +139,62 @@ func (r *runner) runBackupAndStore() error {
 		return err
 	}
 
+	go func() {
+		for {
+			time.Sleep(r.backupFrequency)
+			err := r.backupAndStore(influxCli)
+			if err != nil {
+				r.logger.Warn(err.Error())
+			}
+		}
+	}()
+
+	return nil
+}
+
+func (r *runner) backupAndStore(influxClient influx_cli.Client) error {
+	backupFilenamePattern := "20060102T150405Z"
+	directoryName := time.Now().UTC().Format(backupFilenamePattern)
+
 	backupParams := influx_cli.BackupInfluxParams{
 		Org:    influx.DefaultOrgName,
 		Bucket: influx.DefaultBucketName,
 		Path:   r.storageDriver.GetLocalStorageLocation(),
 	}
 
-	go func() {
-		for {
-			time.Sleep(r.backupFrequency)
-			err = influxCli.BackupInflux(backupParams)
-			if err != nil {
-				panic(err)
-			}
+	defer cleanupBackup(backupParams.Path)
 
-			err = r.storageDriver.UploadTar(r.storageDriver.GetLocalStorageLocation())
-			if err != nil {
-				panic(err)
-			}
-		}
-	}()
+	backupParams.Path = path.Join(r.storageDriver.GetLocalStorageLocation(), directoryName)
+
+	err := influxClient.BackupInflux(backupParams)
+	if err != nil {
+		return err
+	}
+
+	err = tarutils.Tar(backupParams.Path, r.storageDriver.GetLocalStorageLocation())
+	if err != nil {
+		return err
+	}
+
+	err = r.storageDriver.UploadTar(fmt.Sprintf("%s.tar", directoryName))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func cleanupBackup(backupPath string) error {
+	errBackupPath := os.RemoveAll(backupPath)
+	errTar := os.RemoveAll(fmt.Sprintf("%s.tar", backupPath))
+
+	if errBackupPath != nil && errTar != nil {
+		return errors.Wrapf(errBackupPath, errBackupPath.Error())
+	} else if errBackupPath != nil {
+		return errBackupPath
+	} else if errTar != nil {
+		return errTar
+	}
 
 	return nil
 }
