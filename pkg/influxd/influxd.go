@@ -8,14 +8,22 @@ import (
 	"time"
 )
 
-func RunInfluxD(abort <-chan error, influxDLocation string) error {
-	// spin up a new Envoy process
+func CleanupConfigFile() error {
 	dirname, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
 
 	err = os.RemoveAll(filepath.Join(dirname, ".influxdbv2"))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func RunInfluxD(abort <-chan error, influxDLocation string) error {
+	err := CleanupConfigFile()
 	if err != nil {
 		return err
 	}

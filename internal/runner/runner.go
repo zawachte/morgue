@@ -107,7 +107,7 @@ func (r *runner) setupInflux(token, password string) error {
 func (r *runner) Run(ctx context.Context) error {
 	err := r.svcManager.RunInfluxD()
 	if err != nil {
-		return nil
+		return errors.Wrap(err, "unable to run influx")
 	}
 
 	influxd.WaitForInfluxDReady()
@@ -116,12 +116,12 @@ func (r *runner) Run(ctx context.Context) error {
 	password := generateToken()
 	err = r.setupInflux(token, password)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "unable to setup influx")
 	}
 
 	err = r.svcManager.RunTelegraf(token)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	err = r.runBackupAndStore()
@@ -159,12 +159,10 @@ func (r *runner) backupAndStore(influxClient influx_cli.Client) error {
 	backupParams := influx_cli.BackupInfluxParams{
 		Org:    influx.DefaultOrgName,
 		Bucket: influx.DefaultBucketName,
-		Path:   r.storageDriver.GetLocalStorageLocation(),
+		Path:   path.Join(r.storageDriver.GetLocalStorageLocation(), directoryName),
 	}
 
 	defer cleanupBackup(backupParams.Path)
-
-	backupParams.Path = path.Join(r.storageDriver.GetLocalStorageLocation(), directoryName)
 
 	err := influxClient.BackupInflux(backupParams)
 	if err != nil {

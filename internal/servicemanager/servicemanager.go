@@ -71,8 +71,32 @@ type systemDServiceManager struct {
 }
 
 func (esm *systemDServiceManager) RunInfluxD() error {
-	cmd := exec.Command("systemctl", "reload-or-restart", "influxd")
-	_, err := cmd.CombinedOutput()
+	err := influxd.CleanupConfigFile()
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command("sudo", "systemctl", "stop", "influxd")
+	_, err = cmd.CombinedOutput()
+	if err != nil {
+		esm.logger.Warn("couldn't stop influxd")
+	}
+
+	filesToDelete := []string{
+		"/var/lib/influxdb/engine",
+		"/var/lib/influxdb/influxd.bolt",
+		"/var/lib/influxdb/influxd.sqlite"}
+
+	for _, file := range filesToDelete {
+		cmd = exec.Command("sudo", "rm", "-r", file)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			esm.logger.Sugar().Warnw("couldn't delete", "file", file, "output", string(output), "error", err.Error())
+		}
+	}
+
+	cmd = exec.Command("sudo", "systemctl", "reload-or-restart", "influxd")
+	_, err = cmd.CombinedOutput()
 	if err != nil {
 		return err
 	}
@@ -92,7 +116,7 @@ func (esm *systemDServiceManager) RunTelegraf(token string) error {
 		return nil
 	}
 
-	cmd := exec.Command("systemctl", "reload-or-restart", "telegraf")
+	cmd := exec.Command("sudo", "systemctl", "reload-or-restart", "telegraf")
 	_, err = cmd.CombinedOutput()
 	if err != nil {
 		return nil

@@ -1,0 +1,19 @@
+[Unit]
+Description=infrastructure metrics from the dead
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=root
+ExecStartPre=
+ExecStart=/usr/bin/morgue $OPTIONS
+EnvironmentFile=/etc/default/morgue
+ExecStartPost
+ExecStop=
+ExecReload=
+
+[Install]
+WantedBy=multi-user.target
