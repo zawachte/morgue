@@ -15,7 +15,7 @@ morgue only runs on linux.
 
 #### Backup Storage
 
-The only storage locations for backups are local storage and s3. For s3 storage you need to ensure that the targeted bucket already exists.
+The only storage locations for backups are local storage and s3. For s3 storage you need to ensure the machine has proper aws auth setup and the targeted bucket already exists.
 
 ### Systemd service mode
 
