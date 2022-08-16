@@ -7,7 +7,7 @@ morgue configures telegraf and influxd to:
 
 This is useful in IOT and edge cases when machines don't have relible internet connectivity to emit metrics in 10-20s intervals. 
 
-It is also useful if you have a cloud instance with monitoring tied to kubernetes, and the node goes down and some metrics data is lost.
+It is also useful if you have a cloud instance with monitoring tied to kubernetes, and the node goes down and some metrics data could be lost.
 
 ## Getting Started
 
