@@ -8,6 +8,14 @@ It is also useful if you have a cloud instance with monitoring tied to kubernete
 
 ## Getting Started
 
+### Prerequisites
+
+#### Operating Systems
+morgue only runs on linux. 
+
+#### Backup Storage
+
+The only storage locations for backups are local storage and s3. For s3 storage you need to ensure that the targeted bucket already exists.
 
 ### Systemd service mode
 
@@ -93,3 +101,7 @@ And run the binary:
  --aws-region us-east-1 \
  --aws-s3-bucket samples-metrics-bucket
 ```
+
+## Consuming the backups
+
+COMING soon: `morguectl`: tooling to simpify extraction and loading of the influxdb backups to a fresh influxdb and local grafana UI.
