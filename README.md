@@ -104,4 +104,4 @@ And run the binary:
 
 ## Consuming the backups
 
-COMING soon: `morguectl`: tooling to simpify extraction and loading of the influxdb backups to a fresh influxdb and local grafana UI.
+Coming soon: `morguectl`: tooling to simpify extraction and loading of the influxdb backups to a fresh influxdb and local grafana UI.
