@@ -56,7 +56,7 @@ Then copy the morgue binary to the `/usr/bin/morgue` on the target system. After
 Lastly, you will need to write a file at `/etc/default/morgue` with something like the following:
 
 ```
-OPTIONS="--service-mode=true --backup-frequency 1m --storage-driver aws --aws-region us-east-1 --aws-s3-bucket samples-metrics-bucket"
+OPTIONS="--service-mode=true --backup-frequency 1h --storage-driver aws --aws-region us-east-1 --aws-s3-bucket samples-metrics-bucket"
 ```
 
 Now we are ready to start the service:

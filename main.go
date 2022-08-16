@@ -35,7 +35,7 @@ func main() {
 	)
 	fs.DurationVar(&retention,
 		"retention",
-		time.Hour,
+		6*time.Hour,
 		"retention time for stored metrics",
 	)
 	fs.DurationVar(&backupFrequency,
